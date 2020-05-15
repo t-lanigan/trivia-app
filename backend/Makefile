@@ -1,11 +1,15 @@
+TEST_APP_NAME := trivia_test
 
 test:
-	dropdb trivia_test
-	createdb trivia_test
-	psql trivia_test < trivia.psql
+	dropdb $(TEST_APP_NAME)
+	createdb $(TEST_APP_NAME)
+	psql $(TEST_APP_NAME) < trivia.psql
 	python test_flaskr.py
 
 run-backend:
 	export FLASK_APP=flaskr
 	export FLASK_ENV=development
 	flask run
+
+connect-to-db:
+	psql $(APP_NAME)
