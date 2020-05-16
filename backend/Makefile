@@ -1,4 +1,4 @@
-TEST_APP_NAME := trivia_test
+TEST_APP_NAME := trivia
 
 test:
 	dropdb $(TEST_APP_NAME)
@@ -7,9 +7,12 @@ test:
 	python test_flaskr.py
 
 run-backend:
-	export FLASK_APP=flaskr
-	export FLASK_ENV=development
-	flask run
+	FLASK_APP=flaskr FLASK_ENV=development flask run
 
 connect-to-db:
-	psql $(APP_NAME)
+	psql $(TEST_APP_NAME)
+
+reset-db:
+	dropdb $(TEST_APP_NAME)
+	createdb $(TEST_APP_NAME)
+	psql $(TEST_APP_NAME) < trivia.psql
