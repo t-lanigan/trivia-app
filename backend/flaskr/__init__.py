@@ -79,7 +79,7 @@ def create_app(test_config=None):
             # SQLAlchemy has a function to paginate. Join the questions and categories table.
             questions = Question.query.join(
                 Category, Category.id == Question.category).add_columns(
-                Category.type).paginate(page, app.config['QUESTIONS_PER_PAGE'], False)
+                Category.type).paginate(page, app.config['QUESTIONS_PER_PAGE'])
 
             formatted_questions = format_questions(questions.items)
 
@@ -93,7 +93,6 @@ def create_app(test_config=None):
 
             return response, 200
         except Exception as e:
-            app.logger.error(e)
             abort(500)
 
     @app.route("/questions/<int:question_id>", methods=["DELETE"])
@@ -146,7 +145,7 @@ def create_app(test_config=None):
             return response, 201
         except Exception as e:
             app.logger.error(e)
-            abort(500)
+            abort(422)
 
     @app.route("/questions/search", methods=["POST"])
     def search_question():
