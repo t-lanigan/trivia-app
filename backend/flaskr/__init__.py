@@ -155,6 +155,8 @@ def create_app(test_config=None):
             response -- questions filtered by a search term.
         """
 
+        print("TEST", request.get_json())
+
         try:
             body = request.get_json()
             wild_search_term = '%' + body['searchTerm'] + '%'
