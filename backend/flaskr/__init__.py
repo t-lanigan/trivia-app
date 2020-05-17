@@ -6,13 +6,12 @@ import random
 
 from models import setup_db, Question, Category
 
-QUESTIONS_PER_PAGE = 10
-
 
 def create_app(test_config=None):
 
     # create and configure the app
     app = Flask(__name__)
+    app.config['QUESTIONS_PER_PAGE'] = 10
     db = setup_db(app)
 
     '''
@@ -25,36 +24,42 @@ def create_app(test_config=None):
     '''
     @app.after_request
     def after_request(response):
+        """Set response headers
+
+        Arguments:
+            response {[type]} -- the response before it goes out.
+
+        Returns:
+            response -- with headers added for access control.
+        """
         response.headers.add('Access-Control-Allow-Headers',
                              'Content-Type,Authorization,true')
         response.headers.add('Access-Control-Allow-Methods',
                              'GET,PATCH,POST,DELETE,OPTIONS')
         return response
 
-    '''
-    @TODO:
-    Create an endpoint to handle GET requests
-    for all available categories.
-    '''
-    @app.route('/categories')
-    def categories(parameter_list):
-        """[summary]
-
-        Arguments:
-            parameter_list {[type]} -- [description]
+    @app.route('/categories', methods=['GET'])
+    def categories():
+        """Handles GET Request for categories
 
         Returns:
-            [type] -- [description]
+            json -- {"success": Boolean, "categories": str}
         """
-        categories = Category.query.all()
         return jsonify({
             "success": True,
-            "categories": categories
-        }), 200
+            "categories": [category.type for category in Category.query.all()]
+        })
 
-    @app.route('/status/am-i-up')
-    def status():
-        return "yes!"
+    @app.route('/status/am-i-up', methods=['GET'])
+    def am_i_up():
+        """Check to see if the app is running
+
+        Returns:
+            JSON -- {"success": Boolean}
+        """
+        return jsonify({
+            "success": True,
+        })
 
     '''
     @TODO: 
@@ -69,15 +74,38 @@ def create_app(test_config=None):
     ten questions per page and pagination at the bottom of the screen for three pages.
     Clicking on the page numbers should update the questions. 
     '''
-    @app.route('/questions')
+    @app.route('/questions', methods=['GET'])
     def questions():
-        page = request.args.get('page', 1, type=int)
-        questions = db.session.query(Question).paginate(
-            page, QUESTIONS_PER_PAGE, False)
+        """Handle GET requests for questions, including pagination (set page variable above in configs.)
 
-        print("TEST")
-        print(questions.items)
-        return questions.items
+        Returns:
+            JSON -- {"success": Boolean,
+                     "questions: formatted_questions,
+                     "total_questions": int,
+                     "current_category: str,
+                     "categories": str}
+        """
+        page = request.args.get('page', 1, type=int)
+
+        # SQLAlchemy has a function to paginate. Join the questions and categories table.
+        questions = Question.query.join(
+            Category, Category.id == Question.category).add_columns(
+            Category.type).paginate(page, app.config['QUESTIONS_PER_PAGE'], False)
+
+        # The front end expect questions formatted is the following way:
+        formatted_questions = []
+        for question, category in questions.items:
+            question = question.format()
+            question["category"] = category
+            formatted_questions.append(question)
+
+        return jsonify({
+            "success": True,
+            "questions": formatted_questions,
+            "total_questions": len(Question.query.all()),
+            'current_category': None,
+            "categories": [category.type for category in Category.query.all()]
+        })
 
     '''
     @TODO: 
@@ -134,5 +162,32 @@ def create_app(test_config=None):
     Create error handlers for all expected errors 
     including 404 and 422. 
     '''
+
+    @app.errorhandler(404)
+    def resource_not_found_error(error):
+        response = jsonify({
+            "success": False,
+            "error": 404,
+            "message": error.description
+        })
+        return response, 404
+
+    @app.errorhandler(500)
+    def internal_server_error(error):
+        response = jsonify({
+            "success": False,
+            "error": 500,
+            "message": error.description
+        })
+        return response, 500
+
+    @app.errorhandler(422)
+    def unprocessible_entity_error(error):
+        response = jsonify({
+            "success": False,
+            "error": 422,
+            "message": error.description
+        })
+        return response, 422
 
     return app
