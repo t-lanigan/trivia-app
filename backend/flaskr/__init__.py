@@ -53,7 +53,8 @@ def create_app(test_config=None):
             })
 
             return response, 200
-        except:
+        except Exception as e:
+            app.logger.error(e)
             abort(500)
 
     @app.route('/status/am-i-up', methods=['GET'])
@@ -102,7 +103,8 @@ def create_app(test_config=None):
             })
 
             return response, 200
-        except:
+        except Exception as e:
+            app.logger.error(e)
             abort(500)
 
     '''
@@ -125,7 +127,7 @@ def create_app(test_config=None):
         """
 
         question = Question.query.filter_by(id=question_id).one_or_none()
-        if question:
+        try:
             question.delete()
 
             response = jsonify({
@@ -133,19 +135,10 @@ def create_app(test_config=None):
             })
 
             return response, 200
-        else:
+
+        except Exception as e:
+            app.logger.error(e)
             abort(404)
-
-    '''
-    @TODO: 
-    Create an endpoint to POST a new question, 
-    which will require the question and answer text, 
-    category, and difficulty score.
-
-    TEST: When you submit a question on the "Add" tab, 
-    the form will clear and the question will appear at the end of the last page
-    of the questions list in the "List" tab.  
-    '''
 
     @app.route("/questions", methods=["POST"])
     def create_question():
@@ -170,7 +163,8 @@ def create_app(test_config=None):
                 "question": question.format(),
             })
             return response, 201
-        except:
+        except Exception as e:
+            app.logger.error(e)
             abort(500)
 
     '''
@@ -183,6 +177,40 @@ def create_app(test_config=None):
     only question that include that string within their question. 
     Try using the word "title" to start. 
     '''
+
+    @app.route("/questions/search", methods=["POST"])
+    def search_question():
+        """Creates a questions to be submitted to the database
+
+        Returns:
+            response, code -- the response and code,
+        """
+
+        try:
+            body = request.get_json()
+            wild_search_term = '%' + body['searchTerm'] + '%'
+
+            like_questions = Question.query.filter(
+                Question.question.ilike(wild_search_term)).join(
+                Category, Category.id == Question.category).add_columns(
+                Category.type)
+
+            # The front end expect questions formatted is the following way:
+            formatted_questions = []
+            for question, category in like_questions:
+                question = question.format()
+                question["category"] = category
+                formatted_questions.append(question)
+
+            response = jsonify({
+                "success": True,
+                "questions": formatted_questions,
+                "current_category": None,
+            })
+            return response, 201
+        except Exception as e:
+            app.logger.error(e)
+            abort(500)
 
     '''
     @TODO: 
