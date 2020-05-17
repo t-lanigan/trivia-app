@@ -37,7 +37,7 @@ def create_app(test_config=None):
         """Handles GET Request for categories
 
         Returns:
-            response, code -- the response and code,
+            response, code -- the list of all categories.
         """
 
         try:
@@ -56,7 +56,7 @@ def create_app(test_config=None):
         """Check to see if the app is running
 
         Returns:
-            response, code -- the response and code,
+            response, code -- the response and code
         """
 
         response = jsonify({
@@ -70,7 +70,7 @@ def create_app(test_config=None):
         """Handle GET requests for questions, including pagination (set page variable above in configs.)
 
         Returns:
-            response, code -- the response and code,
+            response -- the list of all questions including pagination.
         """
 
         try:
@@ -104,7 +104,7 @@ def create_app(test_config=None):
             question_id int -- the id of the quetsion
 
         Returns:
-            response, code -- the response and code,
+            response -- the succesfull deletion.
         """
 
         question = Question.query.filter_by(id=question_id).one_or_none()
@@ -126,7 +126,7 @@ def create_app(test_config=None):
         """Creates a questions to be submitted to the database
 
         Returns:
-            response, code -- the response and code,
+            response -- the list of all questions.
         """
 
         try:
@@ -153,7 +153,7 @@ def create_app(test_config=None):
         """Searches questions using a POST request.
 
         Returns:
-            response, code -- the response and code,
+            response -- questions filtered by a search term.
         """
 
         try:
@@ -185,7 +185,7 @@ def create_app(test_config=None):
             category_id int -- the category id
 
         Returns:
-            response, code -- the response and code,
+            response -- the questions filtered by category.
         """
 
         # Category comes indexed by 0.
@@ -206,20 +206,17 @@ def create_app(test_config=None):
             app.logger.error(e)
             abort(500)
 
-    '''
-    @TODO: 
-    Create a POST endpoint to get questions to play the quiz. 
-    This endpoint should take category and previous question parameters 
-    and return a random questions within the given category, 
-    if provided, and that is not one of the previous questions. 
-
-    TEST: In the "Play" tab, after a user selects "All" or a category,
-    one question at a time is displayed, the user is allowed to answer
-    and shown whether they were correct or not. 
-    '''
-
     @app.route("/quizzes", methods=["POST"])
     def get_quiz_question():
+        """a POST endpoint to get questions to play the quiz.
+
+        This endpoint takescategory and previous question parameters 
+        and return a random questions within the given category, 
+        if provided, and that is not one of the previous questions.
+
+        Returns:
+            response -- a random question
+        """
 
         try:
             body = request.get_json()
