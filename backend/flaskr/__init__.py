@@ -45,10 +45,16 @@ def create_app(test_config=None):
         Returns:
             json -- {"success": Boolean, "categories": str}
         """
-        return jsonify({
-            "success": True,
-            "categories": [category.type for category in Category.query.all()]
-        })
+
+        try:
+            response = jsonify({
+                "success": True,
+                "categories": [category.type for category in Category.query.all()]
+            })
+
+            return response, 200
+        except:
+            abort(500)
 
     @app.route('/status/am-i-up', methods=['GET'])
     def am_i_up():
@@ -57,9 +63,12 @@ def create_app(test_config=None):
         Returns:
             JSON -- {"success": Boolean}
         """
-        return jsonify({
+
+        response = jsonify({
             "success": True,
         })
+
+        return response, 200
 
     @app.route('/questions', methods=['GET'])
     def questions():
@@ -72,27 +81,33 @@ def create_app(test_config=None):
                      "current_category: str,
                      "categories": str}
         """
-        page = request.args.get('page', 1, type=int)
 
-        # SQLAlchemy has a function to paginate. Join the questions and categories table.
-        questions = Question.query.join(
-            Category, Category.id == Question.category).add_columns(
-            Category.type).paginate(page, app.config['QUESTIONS_PER_PAGE'], False)
+        try:
+            page = request.args.get('page', 1, type=int)
 
-        # The front end expect questions formatted is the following way:
-        formatted_questions = []
-        for question, category in questions.items:
-            question = question.format()
-            question["category"] = category
-            formatted_questions.append(question)
+            # SQLAlchemy has a function to paginate. Join the questions and categories table.
+            questions = Question.query.join(
+                Category, Category.id == Question.category).add_columns(
+                Category.type).paginate(page, app.config['QUESTIONS_PER_PAGE'], False)
 
-        return jsonify({
-            "success": True,
-            "questions": formatted_questions,
-            "total_questions": len(Question.query.all()),
-            'current_category': None,
-            "categories": [category.type for category in Category.query.all()]
-        })
+            # The front end expect questions formatted is the following way:
+            formatted_questions = []
+            for question, category in questions.items:
+                question = question.format()
+                question["category"] = category
+                formatted_questions.append(question)
+
+            response = jsonify({
+                "success": True,
+                "questions": formatted_questions,
+                "total_questions": len(Question.query.all()),
+                'current_category': None,
+                "categories": [category.type for category in Category.query.all()]
+            })
+
+            return response, 200
+        except:
+            abort(500)
 
     '''
     @TODO: 
@@ -112,16 +127,18 @@ def create_app(test_config=None):
         Returns:
             JSON -- the succesful response.
         """
-        try:
-            question = Question.query.filter_by(id=question_id).first()
+
+        question = Question.query.filter_by(id=question_id).one_or_none()
+        if question:
             question.delete()
-            return jsonify({
+
+            response = jsonify({
                 "success": True,
             })
 
-        except Exception as e:
-            app.logger.error(e)
-            return jsonify({"message": "Question doesn't exist."})
+            return response, 200
+        else:
+            abort(404)
 
     '''
     @TODO: 
