@@ -43,7 +43,7 @@ def create_app(test_config=None):
         """Handles GET Request for categories
 
         Returns:
-            json -- {"success": Boolean, "categories": str}
+            response, code -- the response and code,
         """
 
         try:
@@ -61,7 +61,7 @@ def create_app(test_config=None):
         """Check to see if the app is running
 
         Returns:
-            JSON -- {"success": Boolean}
+            response, code -- the response and code,
         """
 
         response = jsonify({
@@ -75,11 +75,7 @@ def create_app(test_config=None):
         """Handle GET requests for questions, including pagination (set page variable above in configs.)
 
         Returns:
-            JSON -- {"success": Boolean,
-                     "questions: formatted_questions,
-                     "total_questions": int,
-                     "current_category: str,
-                     "categories": str}
+            response, code -- the response and code,
         """
 
         try:
@@ -125,7 +121,7 @@ def create_app(test_config=None):
             question_id int -- the id of the quetsion
 
         Returns:
-            JSON -- the succesful response.
+            response, code -- the response and code,
         """
 
         question = Question.query.filter_by(id=question_id).one_or_none()
@@ -150,6 +146,32 @@ def create_app(test_config=None):
     the form will clear and the question will appear at the end of the last page
     of the questions list in the "List" tab.  
     '''
+
+    @app.route("/questions", methods=["POST"])
+    def create_question():
+        """Creates a questions to be submitted to the database
+
+        Returns:
+            response, code -- the response and code,
+        """
+
+        try:
+            body = request.get_json()
+            question = Question(
+                question=body.get("question"),
+                answer=body.get("answer"),
+                category=int(body.get("category")),
+                difficulty=int(body.get("difficulty"))
+            )
+            question.insert()
+
+            response = jsonify({
+                "success": True,
+                "question": question.format(),
+            })
+            return response, 201
+        except:
+            abort(500)
 
     '''
     @TODO: 
