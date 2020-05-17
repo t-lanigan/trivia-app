@@ -1,5 +1,5 @@
 import os
-from flask import Flask, request, abort, jsonify
+from flask import Flask, request, abort, jsonify, flash
 from flask_sqlalchemy import SQLAlchemy
 from flask_cors import CORS
 import random
@@ -14,14 +14,8 @@ def create_app(test_config=None):
     app.config['QUESTIONS_PER_PAGE'] = 10
     db = setup_db(app)
 
-    '''
-    @TODO: Set up CORS. Allow '*' for origins. Delete the sample route after completing the TODOs
-    '''
     CORS(app, resources={r"/*": {"origins": "*"}})
 
-    '''
-    @TODO: Use the after_request decorator to set Access-Control-Allow
-    '''
     @app.after_request
     def after_request(response):
         """Set response headers
@@ -87,12 +81,7 @@ def create_app(test_config=None):
                 Category, Category.id == Question.category).add_columns(
                 Category.type).paginate(page, app.config['QUESTIONS_PER_PAGE'], False)
 
-            # The front end expect questions formatted is the following way:
-            formatted_questions = []
-            for question, category in questions.items:
-                question = question.format()
-                question["category"] = category
-                formatted_questions.append(question)
+            formatted_questions = format_questions(questions.items)
 
             response = jsonify({
                 "success": True,
@@ -106,14 +95,6 @@ def create_app(test_config=None):
         except Exception as e:
             app.logger.error(e)
             abort(500)
-
-    '''
-    @TODO: 
-    Create an endpoint to DELETE question using a question ID. 
-
-    TEST: When you click the trash icon next to a question, the question will be removed.
-    This removal will persist in the database and when you refresh the page. 
-    '''
 
     @app.route("/questions/<int:question_id>", methods=["DELETE"])
     def delete_question(question_id):
@@ -167,20 +148,9 @@ def create_app(test_config=None):
             app.logger.error(e)
             abort(500)
 
-    '''
-    @TODO: 
-    Create a POST endpoint to get questions based on a search term. 
-    It should return any questions for whom the search term 
-    is a substring of the question. 
-
-    TEST: Search by any phrase. The questions list will update to include 
-    only question that include that string within their question. 
-    Try using the word "title" to start. 
-    '''
-
     @app.route("/questions/search", methods=["POST"])
     def search_question():
-        """Creates a questions to be submitted to the database
+        """Searches questions using a POST request.
 
         Returns:
             response, code -- the response and code,
@@ -195,31 +165,47 @@ def create_app(test_config=None):
                 Category, Category.id == Question.category).add_columns(
                 Category.type)
 
-            # The front end expect questions formatted is the following way:
-            formatted_questions = []
-            for question, category in like_questions:
-                question = question.format()
-                question["category"] = category
-                formatted_questions.append(question)
+            formatted_questions = format_questions(like_questions)
 
             response = jsonify({
                 "success": True,
                 "questions": formatted_questions,
                 "current_category": None,
             })
-            return response, 201
+            return response, 200
         except Exception as e:
             app.logger.error(e)
             abort(500)
 
-    '''
-    @TODO: 
-    Create a GET endpoint to get questions based on category. 
+    @app.route("/categories/<int:category_id>/questions", methods=["GET"])
+    def get_questions_by_category(category_id):
+        """Gets the list of questions filtered by category.
 
-    TEST: In the "List" tab / main screen, clicking on one of the 
-    categories in the left column will cause only questions of that 
-    category to be shown. 
-    '''
+        Arguments:
+            category_id int -- the category id
+
+        Returns:
+            response, code -- the response and code,
+        """
+
+        # Category comes indexed by 0.
+        category_id = category_id + 1
+        try:
+            questions = Question.query.filter_by(category=category_id)\
+                .join(Category, Category.id == Question.category)\
+                .add_columns(Category.type)
+
+            formatted_questions = format_questions(questions)
+            response = jsonify({
+                "success": True,
+                "questions": formatted_questions,
+                "current_category": None,
+            })
+            return response, 200
+        except Exception as e:
+            app.logger.error(e)
+            abort(500)
+
     '''
     @TODO: 
     Create a POST endpoint to get questions to play the quiz. 
@@ -232,11 +218,55 @@ def create_app(test_config=None):
     and shown whether they were correct or not. 
     '''
 
-    '''
-    @TODO: 
-    Create error handlers for all expected errors 
-    including 404 and 422. 
-    '''
+    @app.route("/quizzes", methods=["POST"])
+    def get_quiz_question():
+
+        try:
+            body = request.get_json()
+            print(body)
+            previous_questions = body.get("previous_questions")
+
+            # categories is indexed at 0, this adds one to match the db.
+            category_id = str(int(body.get("quiz_category")["id"]) + 1)
+
+            # if type is 'click' or ALL, then return all the questions.
+            if body.get("quiz_category")["type"] == 'click':
+                questions = Question\
+                    .query\
+                    .filter(Question.id.notin_(previous_questions)).all()
+            else:
+                questions = Question\
+                    .query\
+                    .filter_by(category=category_id)\
+                    .filter(Question.id.notin_(previous_questions)).all()
+
+            # Get a random question if there are any left.
+            question = random.choice(questions).format() if questions else None
+
+            response = jsonify({
+                "success": True,
+                "question": question,
+            })
+            return response, 200
+
+        except Exception as e:
+            app.logger.error(e)
+            abort(500)
+
+    def format_questions(questions):
+        """The front end expect questions formatted in a specific way
+
+        Arguments:
+            questions_category  -- questions and corresponding category
+        """
+
+        formatted_questions = []
+        for question, category in questions:
+            question = question.format()
+            question["category"] = category
+            formatted_questions.append(question)
+
+        return formatted_questions
 
     @app.errorhandler(404)
     def resource_not_found_error(error):
@@ -247,15 +277,6 @@ def create_app(test_config=None):
         })
         return response, 404
 
-    @app.errorhandler(500)
-    def internal_server_error(error):
-        response = jsonify({
-            "success": False,
-            "error": 500,
-            "message": error.description
-        })
-        return response, 500
-
     @app.errorhandler(422)
     def unprocessible_entity_error(error):
         response = jsonify({
@@ -264,5 +285,14 @@ def create_app(test_config=None):
             "message": error.description
         })
         return response, 422
+
+    @app.errorhandler(500)
+    def internal_server_error(error):
+        response = jsonify({
+            "success": False,
+            "error": 500,
+            "message": error.description
+        })
+        return response, 500
 
     return app
